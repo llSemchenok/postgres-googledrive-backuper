@@ -1,6 +1,6 @@
 .idea
 backup.sh
-restory.sh
+restore.sh
 venv
 token.pickle
 credentials.json

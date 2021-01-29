@@ -6,14 +6,15 @@ and load it after clear current database state.
 """
 import os
 import socket
-
 import psycopg2
+import getpass
 
 from googledisk import GoogleDrive
 
 DB_HOSTNAME = os.getenv("DB_HOSTNAME", "localhost")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 BACKUP_KEY = os.getenv("BACKUP_KEY")
 TIME_ZONE = os.getenv("TIME_ZONE", "Europe/Moscow")
 ID_PARENT_FOLDER = os.getenv("ID_PARENT_FOLDER")
@@ -22,9 +23,24 @@ CHECK_HOSTNAME = os.getenv("CHECK_HOSTNAME", False)
 DB_PATH_ENCRYPTED = "/tmp/backup_db.sql.gz.enc"
 DB_PATH_DECRYPTED = "/tmp/db.sql.gz"
 
-connection = psycopg2.connect(
-    f"dbname={DB_NAME} user={DB_USER} host='{DB_HOSTNAME}'")
-cursor = connection.cursor()
+
+def _connect_db_and_check_connection(_password=DB_PASSWORD):
+    _password = f" password={_password}" if _password else str('')
+    try:
+        _connection = psycopg2.connect(
+            f"dbname={DB_NAME} user={DB_USER} host='{DB_HOSTNAME}'{_password}")
+    except psycopg2.OperationalError as oe:
+        if str(oe) == 'fe_sendauth: no password supplied\n':
+            global DB_PASSWORD
+            DB_PASSWORD = getpass.getpass(prompt=f'Password for user {DB_USER}: ', stream=None)
+            return _connect_db_and_check_connection(DB_PASSWORD)
+        elif str(oe) == f'FATAL:  password authentication failed for user "{DB_USER}"\n' \
+                        f'FATAL:  password authentication failed for user "{DB_USER}"\n':
+            exit(str(oe).splitlines()[0], )
+        else:
+            exit(oe)
+    _cursor = _connection.cursor()
+    return _connection, _cursor
 
 
 def say_hello():
@@ -127,6 +143,7 @@ def _silent_remove_file(filename: str):
 
 if __name__ == "__main__":
     say_hello()
+    connection, cursor = _connect_db_and_check_connection()
     if CHECK_HOSTNAME:
         check_hostname()
     download_last_backup_file()
