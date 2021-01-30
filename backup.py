@@ -48,15 +48,19 @@ def get_now_datetime_str():
     return now.strftime('%Y-%m-%d__%H-%M-%S')
 
 
-def check_pub_key():
+def check_key(secret=False):
     from gnupg import GPG
-    if not GPG().export_keys(BACKUP_KEY):
+    key = GPG().list_keys(secret=secret).key_map.get(BACKUP_KEY)
+    if not key:
         exit(
             f"\U00002757 Public encrypt key ({BACKUP_KEY}) "
             f"not found. If you have no key – you need to generate it. "
-            f"You can find help here: "
-            f"https://www.imagescape.com/blog/2015/12/18/encrypted-postgres-backups/"
+        ) if not secret else exit(
+            f"\U00002757 Private encrypt key ({BACKUP_KEY}) "
+            f"not found."
         )
+    else:
+        print(f'\U0001F511 Selected key - {key["uids"][0]}')
 
 
 def dump_database():
@@ -89,7 +93,7 @@ def remove_temp_files():
 if __name__ == '__main__':
     say_hello()
     _connect_db_and_check_connection()
-    check_pub_key()
+    check_key()
     dump_database()
     upload_dump_to_google_disk()
     remove_temp_files()

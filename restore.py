@@ -57,14 +57,19 @@ def check_hostname():
     print("We are on some loader or local server, ok\n")
 
 
-def check_pub_key():
+def check_key(secret=False):
     from gnupg import GPG
-    if not GPG().export_keys(BACKUP_KEY, True, expect_passphrase=False):
+    key = GPG().list_keys(secret=secret).key_map.get(BACKUP_KEY)
+    if not key:
         exit(
-            f"""\U00002757 Private encrypt key ({BACKUP_KEY}) "
-            "not found. You can find help here: "
-            "https://www.imagescape.com/blog/2015/12/18/encrypted-postgres-backups/"""
+            f"\U00002757 Public encrypt key ({BACKUP_KEY}) "
+            f"not found. If you have no key – you need to generate it. "
+        ) if not secret else exit(
+            f"\U00002757 Private encrypt key ({BACKUP_KEY}) "
+            f"not found."
         )
+    else:
+        print(f'\U0001F511 Selected key - {key["uids"][0]}')
 
 
 def download_last_backup_file():
@@ -146,6 +151,7 @@ if __name__ == "__main__":
     connection, cursor = _connect_db_and_check_connection()
     if CHECK_HOSTNAME:
         check_hostname()
+    check_key(True)
     download_last_backup_file()
     decrypt_database()
     unzip_database()
