@@ -12,6 +12,7 @@ import getpass
 from googledisk import GoogleDrive
 
 DB_HOSTNAME = os.getenv("DB_HOSTNAME", "localhost")
+DB_PORT = os.getenv('DB_PORT', '5432')
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -116,8 +117,9 @@ def clear_database():
 
 def load_database():
     print(f"\U0001F4A4 Database load started")
+    _escaped_password = ":"+"\\".join(DB_PASSWORD) if DB_PASSWORD else ""
     operation_status = os.WEXITSTATUS(os.system(
-        f"""psql -h {DB_HOSTNAME} -U {DB_USER} {DB_NAME} < /tmp/db.sql"""
+        f"psql --db=postgres://{DB_USER}{_escaped_password}@{DB_HOSTNAME}:{DB_PORT}/{DB_NAME} < /tmp/db.sql"
     ))
     if operation_status != 0:
         exit(f"\U00002757 Can not load database, status {operation_status}.")

@@ -9,6 +9,7 @@ import psycopg2
 import getpass
 
 DB_HOSTNAME = os.getenv("DB_HOSTNAME", 'localhost')
+DB_PORT = os.getenv('DB_PORT', '5432')
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD", '')
@@ -65,9 +66,10 @@ def check_key(secret=False):
 
 def dump_database():
     print("\U0001F4E6 Preparing database backup started")
+    _escaped_password = ":"+"\\".join(DB_PASSWORD) if DB_PASSWORD else ""
     dump_db_operation_status = os.WEXITSTATUS(os.system(
-        f"""pg_dump -h {DB_HOSTNAME} -U {DB_USER} {DB_NAME} | \
-         gzip -c --best | gpg -e -r {BACKUP_KEY} > {DB_PATH_ENCRYPTED} """
+        f"pg_dump --db=postgres://{DB_USER}{_escaped_password}@{DB_HOSTNAME}:{DB_PORT}/{DB_NAME} | "
+        f"gzip -c --best | gpg -e -r {BACKUP_KEY} > {DB_PATH_ENCRYPTED}"
     ))
     if dump_db_operation_status != 0:
         exit(f"\U00002757 Dump database command exits with status "
