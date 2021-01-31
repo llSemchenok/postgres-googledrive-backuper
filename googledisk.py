@@ -10,7 +10,7 @@ from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 
 
 class GoogleDrive:
-    CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH")
+    CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH" "credentials.json")
 
     def __init__(self):
         """Shows basic usage of the Drive v3 API.

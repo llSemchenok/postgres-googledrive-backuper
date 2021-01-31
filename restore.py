@@ -6,10 +6,10 @@ and load it after clear current database state.
 """
 import os
 import socket
-import psycopg2
-import getpass
 
 from googledisk import GoogleDrive
+from helpers import *
+
 
 DB_HOSTNAME = os.getenv("DB_HOSTNAME", "localhost")
 DB_PORT = os.getenv('DB_PORT', '5432')
@@ -25,25 +25,6 @@ DB_PATH_ENCRYPTED = "/tmp/backup_db.sql.gz.enc"
 DB_PATH_DECRYPTED = "/tmp/db.sql.gz"
 
 
-def _connect_db_and_check_connection(_password=DB_PASSWORD):
-    _password = f" password={_password}" if _password else str('')
-    try:
-        _connection = psycopg2.connect(
-            f"dbname={DB_NAME} user={DB_USER} host='{DB_HOSTNAME}'{_password}")
-    except psycopg2.OperationalError as oe:
-        if str(oe) == 'fe_sendauth: no password supplied\n':
-            global DB_PASSWORD
-            DB_PASSWORD = getpass.getpass(prompt=f'Password for user {DB_USER}: ', stream=None)
-            return _connect_db_and_check_connection(DB_PASSWORD)
-        elif str(oe) == f'FATAL:  password authentication failed for user "{DB_USER}"\n' \
-                        f'FATAL:  password authentication failed for user "{DB_USER}"\n':
-            exit(str(oe).splitlines()[0], )
-        else:
-            exit(oe)
-    _cursor = _connection.cursor()
-    return _connection, _cursor
-
-
 def say_hello():
     print(
         "This tool will download last database backup from Google Drive, \n"
@@ -56,21 +37,6 @@ def check_hostname():
         exit(f"\U00002757 It seems this is not loader server "
              f"({hostname}), exit.")
     print("We are on some loader or local server, ok\n")
-
-
-def check_key(secret=False):
-    from gnupg import GPG
-    key = GPG().list_keys(secret=secret).key_map.get(BACKUP_KEY)
-    if not key:
-        exit(
-            f"\U00002757 Public encrypt key ({BACKUP_KEY}) "
-            f"not found. If you have no key – you need to generate it. "
-        ) if not secret else exit(
-            f"\U00002757 Private encrypt key ({BACKUP_KEY}) "
-            f"not found."
-        )
-    else:
-        print(f'\U0001F511 Selected key - {key["uids"][0]}')
 
 
 def download_last_backup_file():
@@ -133,7 +99,7 @@ def remove_temp_files():
 
 def _get_all_db_tables():
     cursor.execute("""SELECT table_name FROM information_schema.tables
-                      WHERE table_schema = 'public' order by table_name;                                            """)
+                      WHERE table_schema = 'public' order by table_name;""")
     results = cursor.fetchall()
     tables = []
     for row in results:
@@ -150,10 +116,12 @@ def _silent_remove_file(filename: str):
 
 if __name__ == "__main__":
     say_hello()
-    connection, cursor = _connect_db_and_check_connection()
+    connection, cursor, DB_PASSWORD = connect_db_and_check_connection(db_name=DB_NAME, db_user=DB_USER,
+                                                                      db_hostname=DB_HOSTNAME, db_port=DB_PORT,
+                                                                      db_password=DB_PASSWORD)
     if CHECK_HOSTNAME:
         check_hostname()
-    check_key(True)
+    check_key(BACKUP_KEY, True)
     download_last_backup_file()
     decrypt_database()
     unzip_database()
